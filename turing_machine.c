@@ -13,7 +13,7 @@
 #define UNUSED_CHAR 0
 #define RESERVED_STATES_COUNT 3
 #define MAX_EXTRA_STATE_COUNT (UINT16_MAX - RESERVED_STATES_COUNT)
-#define MA_VALID_STATE_NUM (UINT16_MAX - (RESERVED_STATES_COUNT - 1))
+#define MAX_VALID_STATE_NUM (UINT16_MAX - (RESERVED_STATES_COUNT - 1))
 #define FAILURE -1
 #define SUCCESS 0
 #define HEAD_CHAR 'V'
@@ -60,18 +60,19 @@ segment_array_t get_curr_tape(int64_t head_pos, segment_array_t tape_left, segme
 
 
 int32_t get_state_num(const char *state_str) {
-	// check for reserved states
-	for(int i = 0; i < RESERVED_STATES_COUNT; i++)
-		if(strcmp(state_str, reserved_states_str[i]) == 0)
-			return i;
-
 	// ignore leading q
 	if(state_str[0] == 'q')
 		state_str++;
 
+	// check for reserved states
+	for(int i = 0; i < RESERVED_STATES_COUNT; i++)
+		if(strcmp(state_str, reserved_states_str[i] + 1) == 0)  // + 1 to skip the leading q
+			return i;
+
+
 	char *first_invalid_char = NULL;
-	long state_raw = strtol(state_str, &first_invalid_char, 10);
-	if(*first_invalid_char != '\0' || state_raw > MA_VALID_STATE_NUM)
+	long state_raw = strtol(state_str, &first_invalid_char, 10) + (RESERVED_STATES_COUNT - 1);
+	if(*first_invalid_char != '\0' || state_raw > MAX_VALID_STATE_NUM)
 		return FAILURE;
 
 	// if it is <= MA_VALID_STATE_NUM it certanly fits in a int32_t
@@ -135,8 +136,8 @@ void print_machine_state(int64_t head_pos, segment_array_t tape_left, segment_ar
 		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_left, pos--)]);
 	pos = 0;
 	limit = sa_size(tape_right) - 1;
-	while(pos >= limit)
-		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_right, pos--)]);
+	while(pos <= limit)
+		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_right, pos++)]);
 	putchar(BLANCK_CHAR);
 	printf("\n\n");
 }
@@ -187,9 +188,9 @@ int main()
 	int64_t head_pos = 0;
 	uint16_t state = 0;
 	segment_array_t tape_left = sa_create(sizeof(uint8_t));
-	sa_push_back(tape_left, &blanck_symbol);
 	segment_array_t tape_right = sa_create(sizeof(uint8_t));
 	sa_push_back(tape_right, &blanck_symbol);
+	uint64_t step = 0;
 
 	while(state != Qac && state != Qrej) {
 		segment_array_t curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
@@ -204,11 +205,13 @@ int main()
 
 		curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
 		curr_tape_head_pos = get_curr_tape_head_pos(head_pos);
-		if(curr_tape_head_pos > sa_capacity(curr_tape))
-			if(sa_push_back(curr_tape, &blanck_symbol) != SA_SUCCESS)
-				exit(1);
+		if (curr_tape_head_pos >= sa_size(curr_tape) &&
+		   sa_push_back(curr_tape, &blanck_symbol) != SA_SUCCESS)
+			exit(1);
 		
+		printf("Step: %ld\n", step);
 		print_machine_state(head_pos, tape_left, tape_right);
+		step++;
 	}
 
 	printf("final state: ");
