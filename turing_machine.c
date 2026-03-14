@@ -88,7 +88,7 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 		uint8_t new_char = getchar();
 		if(new_char == '\n') {
-			state_actions[i] = (action_t){ symbol_to_char[i], S, Qrej };
+			state_actions[i] = (action_t){ i, S, Qrej };
 			continue;
 		}
 		ungetc(new_char, stdin);
@@ -112,6 +112,7 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 		char new_state_str[MAX_STATE_STR_SIZE];
 		scanf(" %s", new_state_str);
+		getchar();  // get trailing \n
 		state_actions[i].new_state = get_state_num(new_state_str);
 	}
 }
@@ -134,8 +135,8 @@ void print_machine_state(int64_t head_pos, segment_array_t tape_left, segment_ar
 		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_left, pos--)]);
 	pos = 0;
 	limit = sa_size(tape_right) - 1;
-	while(pos <= limit)
-		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_right, pos++)]);
+	while(pos >= limit)
+		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_right, pos--)]);
 	putchar(BLANCK_CHAR);
 	printf("\n\n");
 }
@@ -190,7 +191,7 @@ int main()
 	segment_array_t tape_right = sa_create(sizeof(uint8_t));
 	sa_push_back(tape_right, &blanck_symbol);
 
-	while(state != Qac || state != Qrej) {
+	while(state != Qac && state != Qrej) {
 		segment_array_t curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
 		uint32_t curr_tape_head_pos = get_curr_tape_head_pos(head_pos);
 		uint8_t symbol = *(uint8_t *)sa_get(curr_tape, curr_tape_head_pos);
