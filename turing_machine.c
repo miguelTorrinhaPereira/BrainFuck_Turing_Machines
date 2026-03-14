@@ -120,10 +120,10 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 
 void print_machine_state(int64_t head_pos, segment_array_t tape_left, segment_array_t tape_right) {
-	uint64_t head_space = 0;
+	int64_t head_space = 0;
 	head_space++;  // left □
 	head_space += sa_size(tape_left);
-	head_space += (head_pos >= 0) ? get_curr_tape_head_pos(head_pos) : -(get_curr_tape_head_pos(head_pos) + 1);
+	head_space += (head_pos >= 0) ? get_curr_tape_head_pos(head_pos) : -((int64_t)get_curr_tape_head_pos(head_pos) + 1);
 	while(head_space--)
 		putchar(' ');
 	putchar(HEAD_CHAR);
