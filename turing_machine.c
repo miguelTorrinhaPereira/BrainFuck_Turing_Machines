@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "segment_array.h"
 
@@ -20,9 +21,9 @@
 #define BLANCK_CHAR '_'
 
 enum : uint16_t {
-	Qin,
-	Qac,
-	Qrej
+	qin,
+	qac,
+	qrej
 };
 
 
@@ -59,16 +60,27 @@ segment_array_t get_curr_tape(int64_t head_pos, segment_array_t tape_left, segme
 }
 
 
+const char *get_state_str(uint16_t state) {
+	if(state < RESERVED_STATES_COUNT)
+		return reserved_states_str[state];
+
+	static char state_str[MAX_STATE_STR_SIZE];
+	state_str[0] = 'q';
+	sprintf(state_str + 1, "%u", state - (RESERVED_STATES_COUNT - 1));  // it is 1 based, not 0
+
+	return state_str;
+}
+
+
 int32_t get_state_num(const char *state_str) {
 	// ignore leading q
-	if(state_str[0] == 'q')
+	if(tolower(state_str[0]) == 'q')
 		state_str++;
 
 	// check for reserved states
 	for(int i = 0; i < RESERVED_STATES_COUNT; i++)
 		if(strcmp(state_str, reserved_states_str[i] + 1) == 0)  // + 1 to skip the leading q
 			return i;
-
 
 	char *first_invalid_char = NULL;
 	long state_raw = strtol(state_str, &first_invalid_char, 10) + (RESERVED_STATES_COUNT - 1);
@@ -89,7 +101,7 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 		uint8_t new_char = getchar();
 		if(new_char == '\n') {
-			state_actions[i] = (action_t){ i, S, Qrej };
+			state_actions[i] = (action_t){ i, S, qrej };
 			continue;
 		}
 		ungetc(new_char, stdin);
@@ -121,7 +133,7 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 void print_machine_state(int64_t head_pos, segment_array_t tape_left, segment_array_t tape_right) {
 	int64_t head_space = 0;
-	head_space++;  // left □
+	head_space++;  // left blanck symbol
 	head_space += sa_size(tape_left);
 	head_space += (head_pos >= 0) ? get_curr_tape_head_pos(head_pos) : -((int64_t)get_curr_tape_head_pos(head_pos) + 1);
 	while(head_space--)
@@ -176,44 +188,66 @@ int main()
 	uint16_t state_count = RESERVED_STATES_COUNT + extra_state_count;
 
 	action_t state_actions[state_count][alphabet_size];
-	read_state_actions("qin", state_actions[0]);
+	read_state_actions(get_state_str(qin), state_actions[0]);
 	for(int i = RESERVED_STATES_COUNT; i < state_count; i++) {
-		char state_str[MAX_STATE_STR_SIZE];
-		state_str[0] = 'q';
-		sprintf(state_str + 1, "%u", i - (RESERVED_STATES_COUNT - 1));  // it is 1 based, not 0
-
-		read_state_actions(state_str, state_actions[i]);
+		read_state_actions(get_state_str(i), state_actions[i]);
 	}
 	
-	int64_t head_pos = 0;
-	uint16_t state = 0;
 	segment_array_t tape_left = sa_create(sizeof(uint8_t));
 	segment_array_t tape_right = sa_create(sizeof(uint8_t));
-	sa_push_back(tape_right, &blanck_symbol);
-	uint64_t step = 0;
 
-	while(state != Qac && state != Qrej) {
-		segment_array_t curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
-		uint32_t curr_tape_head_pos = get_curr_tape_head_pos(head_pos);
-		uint8_t symbol = *(uint8_t *)sa_get(curr_tape, curr_tape_head_pos);
-		action_t action = state_actions[state][symbol];
+	while(true) {
+		int64_t head_pos = 0;
+		uint16_t state = 0;
+		uint64_t step = 0;
 
-		sa_switch(curr_tape, curr_tape_head_pos, &action.new_symbol, NULL);
+		// input
+		sa_clear(tape_left);
+		sa_clear(tape_right);
 
-		state = action.new_state;
-		head_pos += action.direction;
+		printf("\ninput: ");
 
-		curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
-		curr_tape_head_pos = get_curr_tape_head_pos(head_pos);
-		if (curr_tape_head_pos >= sa_size(curr_tape) &&
-		   sa_push_back(curr_tape, &blanck_symbol) != SA_SUCCESS)
-			exit(1);
-		
-		printf("Step: %ld\n", step);
+		int new_char = getchar();
+		if(new_char == '\n' || new_char == EOF)
+			break;
+
+		do {
+			sa_push_back(tape_right, &char_to_symbol[new_char]);
+			new_char = getchar();
+		} while(new_char != '\n' || new_char == EOF);
+
+		printf("Step: %ld, state: %s\n", step, get_state_str(state));
 		print_machine_state(head_pos, tape_left, tape_right);
 		step++;
+
+		// run machine
+		while(state != qac && state != qrej) {
+			segment_array_t curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
+			uint32_t curr_tape_head_pos = get_curr_tape_head_pos(head_pos);
+			uint8_t symbol = *(uint8_t *)sa_get(curr_tape, curr_tape_head_pos);
+			action_t action = state_actions[state][symbol];
+
+			sa_switch(curr_tape, curr_tape_head_pos, &action.new_symbol, NULL);
+
+			state = action.new_state;
+			head_pos += action.direction;
+
+			curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
+			curr_tape_head_pos = get_curr_tape_head_pos(head_pos);
+			if (curr_tape_head_pos >= sa_size(curr_tape) &&
+			sa_push_back(curr_tape, &blanck_symbol) != SA_SUCCESS)
+				exit(1);
+			
+			printf("Step: %ld, state: %s\n", step, get_state_str(state));
+			print_machine_state(head_pos, tape_left, tape_right);
+			step++;
+		}
+
+		printf("final state: ");
+		puts(reserved_states_str[state]);
+		printf("\n---------------\n");
 	}
 
-	printf("final state: ");
-	puts(reserved_states_str[state]);
+	sa_delete(tape_left);
+	sa_delete(tape_right);
 }
