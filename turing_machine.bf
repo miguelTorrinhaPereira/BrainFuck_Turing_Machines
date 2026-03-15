@@ -48,15 +48,17 @@
 
 // conditional, no nested ifs in the same cell
 #define IF_NZ(code) GO_C()SET(0)[RET_C()CODE(code)GO_C()]RET_C()
-//FIXME: make this functional
+//FIXME: make this functional, but maybe it isn't needed
 #define IF_Z(code) SET_C(1)[GO_C()SET(0)]GO_C()[RET_C()CODE(code)GO_C()]RET_C()
 #define IF(value, code) \
 	SUB(value)IF_Z(\
 		ADD(value)CODE(code)SUB(value)\
 	)ADD(value)
+// shouldn't alter the value while in the loop
+#define WHILE_NV(value, code) SUB(value)[ADD(value)CODE(code)SUB(value)]ADD(value)
 
-// special control values
-#define MARCK 0
+// special marker values
+#define MARK 0
 #define DATA 1
 #define HEAD_TAPE 2
 #define HEAD_STATE 3
@@ -66,7 +68,7 @@
 
 // movement
 #define LEFT_0
-#define LEFT_1  <<<<
+#define LEFT_1 <<<<
 #define LEFT_2  <<<<<<<<
 #define LEFT_3  <<<<<<<<<<<<
 #define LEFT_4  <<<<<<<<<<<<<<<<
@@ -76,6 +78,7 @@
 #define LEFT_8  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #define LEFT_9  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #define LEFT_10 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#define LEFT(count) LEFT_##count
 
 #define RIGHT_0
 #define RIGHT_1  >>>>
@@ -88,5 +91,7 @@
 #define RIGHT_8  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #define RIGHT_9  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #define RIGHT_10 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+#define RIGHT(count) RIGHT_##count
 
-
+#define FIND_L(mark) GO_M()LEFT(1)WHILE_NV(mark, LEFT(1))RET_M()
+#define FIND_R(mark) GO_M()RIGHT(1)WHILE_NV(mark, RIGHT(1))RET_M()
