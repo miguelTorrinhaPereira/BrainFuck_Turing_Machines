@@ -48,7 +48,7 @@ char symbol_to_char[UCHAR_MAX];  // certanlly, there aren't more symbols than in
 
 
 uint32_t get_curr_tape_head_pos(int64_t head_pos) {
-	if(head_pos >= 0)
+	if (head_pos >= 0)
 		return head_pos;
 	else
 		return -head_pos - 1;
@@ -61,7 +61,7 @@ segment_array_t get_curr_tape(int64_t head_pos, segment_array_t tape_left, segme
 
 
 const char *get_state_str(uint16_t state) {
-	if(state < RESERVED_STATES_COUNT)
+	if (state < RESERVED_STATES_COUNT)
 		return reserved_states_str[state];
 
 	static char state_str[MAX_STATE_STR_SIZE];
@@ -74,17 +74,17 @@ const char *get_state_str(uint16_t state) {
 
 int32_t get_state_num(const char *state_str) {
 	// ignore leading q
-	if(tolower(state_str[0]) == 'q')
+	if (tolower(state_str[0]) == 'q')
 		state_str++;
 
 	// check for reserved states
-	for(int i = 0; i < RESERVED_STATES_COUNT; i++)
-		if(strcmp(state_str, reserved_states_str[i] + 1) == 0)  // + 1 to skip the leading q
+	for (int i = 0; i < RESERVED_STATES_COUNT; i++)
+		if (strcmp(state_str, reserved_states_str[i] + 1) == 0)  // + 1 to skip the leading q
 			return i;
 
 	char *first_invalid_char = NULL;
 	long state_raw = strtol(state_str, &first_invalid_char, 10) + (RESERVED_STATES_COUNT - 1);
-	if(*first_invalid_char != '\0' || state_raw > MAX_VALID_STATE_NUM)
+	if (*first_invalid_char != '\0' || state_raw > MAX_VALID_STATE_NUM)
 		return FAILURE;
 
 	// if it is <= MA_VALID_STATE_NUM it certanly fits in a int32_t
@@ -96,11 +96,11 @@ int32_t get_state_num(const char *state_str) {
 void read_state_actions(const char *state_str, action_t state_actions[alphabet_size]) {
 	printf("%s:\n", state_str);
 
-	for(int i = 0; i < alphabet_size; i++) {
+	for (int i = 0; i < alphabet_size; i++) {
 		printf("	%c -> ", symbol_to_char[i]);
 
 		uint8_t new_char = getchar();
-		if(new_char == '\n') {
+		if (new_char == '\n') {
 			state_actions[i] = (action_t){ i, S, qrej };
 			continue;
 		}
@@ -136,7 +136,7 @@ void print_machine_state(int64_t head_pos, segment_array_t tape_left, segment_ar
 	head_space++;  // left blanck symbol
 	head_space += sa_size(tape_left);
 	head_space += (head_pos >= 0) ? get_curr_tape_head_pos(head_pos) : -((int64_t)get_curr_tape_head_pos(head_pos) + 1);
-	while(head_space--)
+	while (head_space--)
 		putchar(' ');
 	putchar(HEAD_CHAR);
 	putchar('\n');
@@ -144,11 +144,11 @@ void print_machine_state(int64_t head_pos, segment_array_t tape_left, segment_ar
 	putchar(BLANCK_CHAR);
 	int64_t pos = sa_size(tape_left) - 1;  // needs to be negative
 	uint32_t limit = 0;
-	while(pos >= 0)
+	while (pos >= 0)
 		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_left, pos--)]);
 	pos = 0;
 	limit = sa_size(tape_right) - 1;
-	while(pos <= limit)
+	while (pos <= limit)
 		putchar(symbol_to_char[*(uint8_t *)sa_get(tape_right, pos++)]);
 	putchar(BLANCK_CHAR);
 	printf("\n\n");
@@ -166,10 +166,10 @@ int main()
 	fgets(line, MAX_LINE_SIZE, stdin);
 
 	const char *line_p = line;
-	while(*line_p != '\n') {
+	while (*line_p != '\n') {
 		const char new_char = *line_p;
 
-		if(isspace(new_char) || char_to_symbol[new_char] != UNUSED_CHAR) {
+		if (isspace(new_char) || char_to_symbol[new_char] != UNUSED_CHAR) {
 			line_p++;
 			continue;
 		}
@@ -189,14 +189,14 @@ int main()
 
 	action_t state_actions[state_count][alphabet_size];
 	read_state_actions(get_state_str(qin), state_actions[0]);
-	for(int i = RESERVED_STATES_COUNT; i < state_count; i++) {
+	for (int i = RESERVED_STATES_COUNT; i < state_count; i++) {
 		read_state_actions(get_state_str(i), state_actions[i]);
 	}
 	
 	segment_array_t tape_left = sa_create(sizeof(uint8_t));
 	segment_array_t tape_right = sa_create(sizeof(uint8_t));
 
-	while(true) {
+	while (true) {
 		int64_t head_pos = 0;
 		uint16_t state = 0;
 		uint64_t step = 0;
@@ -208,20 +208,20 @@ int main()
 		printf("\ninput: ");
 
 		int new_char = getchar();
-		if(new_char == '\n' || new_char == EOF)
+		if (new_char == '\n' || new_char == EOF)
 			break;
 
 		do {
 			sa_push_back(tape_right, &char_to_symbol[new_char]);
 			new_char = getchar();
-		} while(new_char != '\n' || new_char == EOF);
+		} while (new_char != '\n' || new_char == EOF);
 
 		printf("Step: %ld, state: %s\n", step, get_state_str(state));
 		print_machine_state(head_pos, tape_left, tape_right);
 		step++;
 
 		// run machine
-		while(state != qac && state != qrej) {
+		while (state != qac && state != qrej) {
 			segment_array_t curr_tape = get_curr_tape(head_pos, tape_left, tape_right);
 			uint32_t curr_tape_head_pos = get_curr_tape_head_pos(head_pos);
 			uint8_t symbol = *(uint8_t *)sa_get(curr_tape, curr_tape_head_pos);
