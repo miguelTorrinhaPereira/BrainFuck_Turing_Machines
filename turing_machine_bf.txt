@@ -95,10 +95,25 @@
 		GOTO_MARKER(index_marker)DEC() \
 	)
 
+
+// -----------------------------
 // main function
+// -----------------------------
+
+
+// There must be an array head in the start for the main loop to work
+GOTO_MARKER(STATE_START) \
+RIGHT(2) \
+MARK_CELL(ARRAY_HEAD) \
+// expected starting point for the loop, continues until the curr state is 0
 GOTO_MARKER(CURR_STATE_CELL) \
+// main loop
 WHILE_NZ( \
 	// setup array search to get the curr state
+	// the previous ARRAY_HEAD was the movement cell of some action
+	// this is usefull for the terminal states, they can put 2 and 3 for aceptance and rejection states
+	GOTO_MARKER(ARRAY_HEAD) \
+	UNMARK_CELL() \
 	// go to the first cell of the first state
 	GOTO_MARKER(STATE_START) \
 	MARK_CELL(ARRAY_HEAD) \
@@ -171,9 +186,11 @@ WHILE_NZ( \
 	RET_MARKER() \
 	RIGHT(1) \
 	UNMARK_CELL() \
+
 	// actually do the left movement
 	LEFT(1) \
 	MARK_CELL(TAPE_HEAD) \
+	
 	// if the state is 0, the machine stops
 	GOTO_MARKER(CURR_STATE_CELL) \
 )
