@@ -77,6 +77,7 @@
 	WHILE_NZ( \
 		GOTO_MARKER(dest_marker)INC() \
 		GOTO_MARKER(orig_marker)DEC() \
+	)
 #define COPY(orig_marker, dest_marker) \
 	MOVE(orig_marker, COPY_CELL) \
 	_GOTO_MARKER_L(COPY_CELL) \
@@ -101,6 +102,8 @@
 // -----------------------------
 
 
+// allows me to put comments between the starting lines
+CODE( \
 // There must be an array head in the start for the main loop to work
 GOTO_MARKER(STATE_START) \
 RIGHT(2) \
@@ -194,3 +197,4 @@ WHILE_NZ( \
 	// if the state is 0, the machine stops
 	GOTO_MARKER(CURR_STATE_CELL) \
 )
+)  // CODE( in the beginning
