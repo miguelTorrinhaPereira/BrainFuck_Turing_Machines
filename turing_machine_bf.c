@@ -253,39 +253,24 @@
 )
 
 #define DO_ACCEPT() CODE( \
-	   INC() \
+	/* print accepted */ \
+	/* print output of machine */ \
 )
 
 #define DO_REJECT() CODE( \
-	   INC() \
+	/* print rejected */ \
 )
 
 #define DO_ABORT() CODE( \
-	   INC() \
+	/* print aborted */ \
 )
 
-//TODO: remove the if else logic, unecessary
 #define OUTPUT_RESULT() CODE(\
-	GOTO_MARKER(CURR_STATE_CELL)  /* wouldn't be used anymore */ \
-	SET_CELL(TRUE) \
+	GOTO_MARKER(ARRAY_HEAD) \
 	\
-	/* If, else if, else if statment */ \
-	WHILE_NZ( \
-		GOTO_MARKER(ARRAY_HEAD) \
-		IF_EQUAL(ABORT_VALUE, DO_ABORT()) \
-		GOTO_MARKER(CURR_STATE_CELL) \
-		SET_CELL(FALSE) \
-	) \
-	WHILE_NZ( \
-		GOTO_MARKER(ARRAY_HEAD) \
-		IF_EQUAL(ACCEPT_VALUE, DO_ACCEPT()) \
-		GOTO_MARKER(CURR_STATE_CELL) \
-		SET_CELL(FALSE) \
-	) \
-	WHILE_NZ( \
-		GOTO_MARKER(ARRAY_HEAD) \
-		IF_EQUAL(REJECT_VALUE, DO_REJECT()) \
-	) \
+	IF_EQUAL(ACCEPT_VALUE, DO_ACCEPT()) \
+	IF_EQUAL(REJECT_VALUE, DO_REJECT()) \
+	IF_EQUAL(ABORT_VALUE, DO_ABORT()) \
 )
 
 #define TURING_MACHINE_BF_PROGRAM CODE( \
