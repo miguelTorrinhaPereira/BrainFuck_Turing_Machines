@@ -43,8 +43,10 @@
 // movement
 #define _LEFT() "<"
 #define _RIGHT() ">"
-#define LEFT(count) REPEAT(count, REPEAT(CELL_SIZE, _LEFT()))
-#define RIGHT(count) REPEAT(count, REPEAT(CELL_SIZE, _RIGHT()))
+#define LEFT() REPEAT(CELL_SIZE, _LEFT())
+#define RIGHT() REPEAT(CELL_SIZE, _RIGHT())
+#define LEFT_N(count) REPEAT(count, LEFT())
+#define RIGHT_N(count) REPEAT(count, RIGHT())
 
 // [ Marker | Data ]
 #define SHIFT_TO_MARKER() _LEFT()
@@ -70,39 +72,39 @@
 // conditional
 // sets the cell 2 cells to the right to 0
 #define IF_EQUAL(value, code) CODE( \
-	RIGHT(1) \
+	RIGHT() \
 	SET_CELL(TRUE) \
-	LEFT(1) \
+	LEFT() \
 	\
 	SUB(value) \
 	WHILE_NZ( \
-		RIGHT(1) \
+		RIGHT() \
 		SET_CELL(FALSE) \
-		LEFT(1) \
+		LEFT() \
 	) \
 	ADD(value) \
 	\
-	RIGHT(1) \
+	RIGHT() \
 	WHILE_NZ( \
 		SET_CELL(0) \
-		LEFT(1) \
+		LEFT() \
 		CODE(code) \
-		RIGHT(1) \
+		RIGHT() \
 	) \
-	LEFT(1) \
+	LEFT() \
 )
 
 // find marker
 #define _GOTO_MARKER_L(marker) \
 	SHIFT_TO_MARKER() \
 		SUB(marker) \
-		WHILE_NZ(ADD(marker)LEFT(1)SUB(marker)) \
+		WHILE_NZ(ADD(marker)LEFT()SUB(marker)) \
 		ADD(marker) \
 	RET_MARKER()
 #define _GOTO_MARKER_R(marker) \
 	SHIFT_TO_MARKER() \
 		SUB(marker) \
-		WHILE_NZ(ADD(marker)RIGHT(1)SUB(marker)) \
+		WHILE_NZ(ADD(marker)RIGHT()SUB(marker)) \
 		ADD(marker) \
 	RET_MARKER()
 #define GOTO_MARKER(marker) _GOTO_MARKER_L(COPY_CELL) _GOTO_MARKER_R(marker)
@@ -184,7 +186,7 @@
 	GOTO_MARKER(ARRAY_HEAD) \
 	/* skip state header */ \
 	MARK_CELL(STATE_START) \
-	RIGHT(1) \
+	RIGHT() \
 	MARK_CELL(ARRAY_HEAD) \
 	GOTO_MARKER(CURR_SYM_CELL) \
 	ARRAY_SEARCH(CURR_SYM_CELL, ACTION_START) \
@@ -203,7 +205,7 @@
 		\
 		/* go to the new sym cell of the action */ \
 		MARK_CELL(ACTION_START) \
-		RIGHT(1) \
+		RIGHT() \
 		MARK_CELL(ARRAY_HEAD) \
 		\
 		/* copy the new sym to the tape head cell */ \
@@ -211,13 +213,13 @@
 		\
 		/* go to the move cell of the action */ \
 		MARK_CELL(UNMARKED) \
-		RIGHT(1) \
+		RIGHT() \
 		MARK_CELL(ARRAY_HEAD) \
 		\
 		IF_EQUAL(LEFT_VALUE,  /* RIGHT */ \
 			GOTO_MARKER(TAPE_HEAD) \
 			MARK_CELL(UNMARKED) \
-			RIGHT(1) \
+			RIGHT() \
 			MARK_CELL(TAPE_HEAD) \
 			GOTO_MARKER(ARRAY_HEAD) \
 		) \
@@ -225,7 +227,7 @@
 			GOTO_MARKER(TAPE_HEAD) \
 			\
 			/* test to see if it is the tape barrier */ \
-			LEFT(1) \
+			LEFT() \
 			SHIFT_TO_MARKER() \
 				IF_EQUAL(TAPE_BARRIER, \
 					/* this is the tape barrier! abort! */ \
@@ -233,7 +235,7 @@
 					/*  put the curr state to 0 so it stops */ \
 					GOTO_MARKER(CURR_STATE_CELL) \
 					SET_CELL(0) \
-					/* put the movement to ABORT (1) to know the cause of the stop */ \
+					/* put the movement to ABORT_VALUE to know the cause of the stop */ \
 					GOTO_MARKER(ARRAY_HEAD) \
 					SET_CELL(ABORT_VALUE) \
 					\
@@ -254,7 +256,12 @@
 
 #define DO_ACCEPT() CODE( \
 	/* print accepted */ \
-	/* print output of machine */ \
+	\
+	GOTO_MARKER(TAPE_HEAD) \
+	WHILE_NZ( \
+		  PRINT() \
+		  RIGHT() \
+	) \
 )
 
 #define DO_REJECT() CODE( \
