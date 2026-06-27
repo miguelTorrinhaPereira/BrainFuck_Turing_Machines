@@ -3,6 +3,11 @@
 #define CELL_SIZE 2
 // [copy cell][curr symbol][curr state](states: (state: [state_header](actions: (action: [new state][new sym][move]), ...)), ...)[tape barrier](tape: [tape cell], ...)
 
+// final states, stored in the movement cell
+#define ABORT_VALUE 1
+#define ACCEPT_VALUE 2
+#define REJECT_VALUE 3
+
 // used to avoid spaces
 #define CODE(code) code
 
@@ -26,12 +31,12 @@
 #define ADD(value) REPEAT(value, INC())
 #define SUB(value) REPEAT(value, DEC())
 
-// conditional
+// simple loop
 #define WHILE_NZ(code) "["CODE(code)"]"
 
 // set current cell
-#define _SET_ZERO() WHILE_NZ(DEC())
-#define SET(value) _SET_ZERO()ADD(value)
+#define _SET_CELL_ZERO() WHILE_NZ(DEC())
+#define SET_CELL(value) _SET_CELL_ZERO()ADD(value)
 
 // movement
 #define _LEFT() "<"
@@ -54,9 +59,37 @@
 #define TAPE_HEAD 7
 #define TAPE_BARRIER 8
 
+#define FALSE 0
+#define TRUE 1
+
 // set mark
-#define MARK_CELL(value) SHIFT_TO_MARKER()SET(value)RET_MARKER()
+#define MARK_CELL(value) SHIFT_TO_MARKER()SET_CELL(value)RET_MARKER()
 #define UNMARK_CELL() MARK_CELL(UNMARKED)
+
+// conditional
+// sets the cell 2 cells to the right to 0
+#define IF_EQUAL(value, code) CODE( \
+	RIGHT(1) \
+	SET_CELL(TRUE) \
+	LEFT(1) \
+	\
+	SUB(value) \
+	WHILE_NZ( \
+		RIGHT(1) \
+		SET_CELL(FALSE) \
+		LEFT(1) \
+	) \
+	ADD(value) \
+	\
+	RIGHT(1) \
+	WHILE_NZ( \
+		SET_CELL(0) \
+		LEFT(1) \
+		CODE(code) \
+		RIGHT(1) \
+	) \
+	LEFT(1) \
+)
 
 // find marker
 #define _GOTO_MARKER_L(marker) \
@@ -77,8 +110,6 @@
 // doesn't celan the dest cell
 // assumes it is starting in the orig cell
 #define MOVE(orig_marker, dest_marker) \
-	GOTO_MARKER(dest_marker) \
-	SET(0) \
 	WHILE_NZ( \
 		GOTO_MARKER(dest_marker)INC() \
 		GOTO_MARKER(orig_marker)DEC() \
@@ -86,7 +117,7 @@
 #define COPY(orig_marker, dest_marker) \
 	MOVE(orig_marker, COPY_CELL) \
 	GOTO_MARKER(dest_marker) \
-	SET(0) \
+	SET_CELL(0) \
 	_GOTO_MARKER_L(COPY_CELL) \
 	WHILE_NZ( \
 		_GOTO_MARKER_R(dest_marker)INC() \
@@ -109,12 +140,11 @@
 
 
 // -----------------------------
-// main function
+// program
 // -----------------------------
 
 
-#define TURING_MACHINE_BF_PROGRAM CODE( \
-	/* input */ \
+#define READ_TAPE() CODE( \
 	/* first cell */ \
 	INPUT() \
 	/* read input until you read a 255 */ \
@@ -127,10 +157,11 @@
 		INC() \
 	) \
 	/* leave it at 0, this will be used as tape */ \
-	\
+)
+
+#define SIMULATE() CODE( \
 	/* expected starting point for the loop, continues until the curr state is 0 */ \
 	GOTO_MARKER(CURR_STATE_CELL) \
-	\
 	/* main loop */ \
 	WHILE_NZ( \
 		/* setup array search to get the curr state */ \
@@ -165,7 +196,7 @@
 		COPY(ARRAY_HEAD, CURR_STATE_CELL) \
 		\
 		/* go to the new sym cell of the action */ \
-		UNMARK_CELL() \
+		MARK_CELL(ACTION_START) \
 		RIGHT(1) \
 		MARK_CELL(ARRAY_HEAD) \
 		\
@@ -190,52 +221,71 @@
 		GOTO_MARKER(TAPE_HEAD) \
 		\
 		/* test to see if it is the tape barrier */ \
-		MARK_CELL(1)  /* TRUE */ \
 		LEFT(1) \
 		SHIFT_TO_MARKER() \
-			SUB(TAPE_BARRIER) \
-			WHILE_NZ( \
-				/* it isn't the tape barrier */ \
-				RIGHT(1) \
-				MARK_CELL(0)  /* FALSE */ \
-				LEFT(1) \
-			) \
-			ADD(TAPE_BARRIER) \
-			RIGHT(1) \
-			WHILE_NZ( \
+			IF_EQUAL(TAPE_BARRIER, \
 				/* this is the tape barrier! abort! */ \
 				RET_MARKER() \
 				/*  put the curr state to 0 so it stops */ \
 				GOTO_MARKER(CURR_STATE_CELL) \
-				SET(0) \
-				/* put the movement to 0 to know the cause of the stop */ \
+				SET_CELL(0) \
+				/* put the movement to ABORT (1) to know the cause of the stop */ \
 				GOTO_MARKER(ARRAY_HEAD) \
-				SET(0) \
+				SET_CELL(ABORT_VALUE) \
 				\
 				GOTO_MARKER(TAPE_BARRIER) \
-				RIGHT(1) \
 				SHIFT_TO_MARKER() \
 			) \
-			LEFT(1)  /* added for readability */ \
 		RET_MARKER() \
-		RIGHT(1) \
-		UNMARK_CELL() \
 		\
 		/* actually do the left movement */ \
-		LEFT(1) \
+		/* The IF_EQUAL already set the old head to 0 */ \
 		MARK_CELL(TAPE_HEAD) \
 		\
 		/* if the state is 0, the machine stops */ \
 		GOTO_MARKER(CURR_STATE_CELL) \
 	) \
+)
+
+#define DO_ACCEPT() CODE( \
+	   INC() \
+)
+
+#define DO_REJECT() CODE( \
+	   INC() \
+)
+
+#define DO_ABORT() CODE( \
+	   INC() \
+)
+
+#define OUTPUT_RESULT() CODE(\
+	GOTO_MARKER(CURR_STATE_CELL)  /* wouldn't be used anymore */ \
+	SET_CELL(TRUE) \
 	\
-	\
-	/* output */ \
-	/* the ARRAY_HEAD marker is in the movement cell */ \
-	GOTO_MARKER(ARRAY_HEAD) \
-	\
-	\
-	\
+	/* If, else if, else if statment */ \
+	WHILE_NZ(  /* 1 for abort */ \
+		GOTO_MARKER(ARRAY_HEAD) \
+		IF_EQUAL(ABORT_VALUE, DO_ABORT()) \
+		GOTO_MARKER(CURR_STATE_CELL) \
+		SET_CELL(FALSE) \
+	) \
+	WHILE_NZ(  /* 2 for accept */ \
+		GOTO_MARKER(ARRAY_HEAD) \
+		IF_EQUAL(ACCEPT_VALUE, DO_ACCEPT()) \
+		GOTO_MARKER(CURR_STATE_CELL) \
+		SET_CELL(FALSE) \
+	) \
+	WHILE_NZ(  /* 3 for reject */ \
+		GOTO_MARKER(ARRAY_HEAD) \
+		IF_EQUAL(REJECT_VALUE, DO_REJECT()) \
+	) \
+)
+
+#define TURING_MACHINE_BF_PROGRAM CODE( \
+	READ_TAPE() \
+	SIMULATE() \
+	OUTPUT_RESULT() \
 )
 
 
