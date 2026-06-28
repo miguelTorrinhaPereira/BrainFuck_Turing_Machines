@@ -201,7 +201,7 @@
 		/* we need to write every cell, not just the data cells */ \
 		_RIGHT() \
 		INPUT() \
-		DO_OP_FACTORS(SUB, 3, 11)  /* 33 is added before hand to every input for them to be printable characters */ \
+		DO_OP_FACTORS(SUB, 4, 8)SUB(1)  /* 33 is added before hand to every input for them to be printable characters */ \
 		INC() \
 	) \
 	/* leave it at 0, this will be used as tape */ \
