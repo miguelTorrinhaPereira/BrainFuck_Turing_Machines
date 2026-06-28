@@ -1,15 +1,12 @@
+//TODO: remove CODE()
 // high level cell = [ Marker | Data ]
 #define CELL_SIZE 2
 // [copy cell][curr symbol][curr state](states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)
 // [translation table header](translation table: [translation], ...)
 // [tape barrier](tape: [tape cell], ...)
 
-// movement cell values, also includes final states
-#define LEFT_VALUE 0
-#define RIGHT_VALUE 1
-#define ACCEPT_VALUE 2
-#define REJECT_VALUE 3
-#define ABORT_VALUE 4
+// marker values
+#include "bf_values.h"
 
 // used to avoid spaces
 #define CODE(code) code
@@ -92,18 +89,7 @@
 #define SHIFT_TO_MARKER() _LEFT()
 #define RET_MARKER() _RIGHT()
 
-// marker values
-#define UNMARKED 0
-#define COPY_CELL 1
-#define CURR_SYM_CELL 2
-#define CURR_STATE_CELL 3
-#define STATE_START 4
-#define ACTION_START 5
-#define ARRAY_HEAD 6
-#define TAPE_HEAD 7
-#define TAPE_BARRIER 8
-#define TRANSLATION_TABLE 9
-
+// may be used in any cell (marker or data)
 #define FALSE 0
 #define TRUE 1
 
@@ -250,8 +236,14 @@
 		RIGHT() \
 		MARK_CELL(ARRAY_HEAD) \
 		\
-		/* copy the new sym to the tape head cell */ \
-		COPY(ARRAY_HEAD, TAPE_HEAD) \
+		/* copy the new sym to the tape head cell only if the state is not terminal */ \
+		GOTO_MARKER(CURR_STATE_CELL) \
+		IF_EQUAL(0, \
+			GOTO_MARKER(ARRAY_HEAD) \
+			COPY(ARRAY_HEAD, TAPE_HEAD) \
+			GOTO_MARKER(CURR_STATE_CELL) \
+		) \
+		GOTO_MARKER(ARRAY_HEAD) \
 		\
 		/* go to the move cell of the action */ \
 		MARK_CELL(UNMARKED) \
