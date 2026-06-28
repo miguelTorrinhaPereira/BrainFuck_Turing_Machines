@@ -13,6 +13,16 @@
 // used to avoid spaces
 #define CODE(code) code
 
+// variadict macro stuff
+#define _ARGS_COUNT_NUMS() 5, 4, 3, 2, 1, 0
+#define __ARGS_COUNT(_1, _2, _3, _4, _5, count, ...) count
+#define _ARGS_COUNT(...) __ARGS_COUNT(__VA_ARGS__)
+#define ARGS_COUNT(...) _ARGS_COUNT(__VA_ARGS__ __VA_OPT__(,) _ARGS_COUNT_NUMS())
+
+// concat macros
+#define _CONCAT_CALL(macro, value, ...) macro##value(__VA_ARGS__)
+#define CONCAT_CALL(macro, value, ...) _CONCAT_CALL(macro, value, __VA_ARGS__)
+
 // repetition
 #define REPEAT_0(code)
 #define REPEAT_1(code) code
@@ -34,7 +44,7 @@
 #define SUB(value) REPEAT(value, DEC())
 
 // simple loop
-#define WHILE_NZ(code) "["CODE(code)"]"
+#define WHILE_NZ(code) "["code"]"
 
 // set current cell
 #define _SET_CELL_ZERO() WHILE_NZ(DEC())
@@ -141,6 +151,22 @@
 #define INPUT() ","
 #define PRINT() "."
 
+#define _ADD_MULTIPLE_1(value) ADD(value)
+#define _ADD_MULTIPLE_2(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_1(__VA_ARGS__) RIGHT()DEC())
+#define _ADD_MULTIPLE_3(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_2(__VA_ARGS__) RIGHT()DEC())
+#define _ADD_MULTIPLE_4(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_3(__VA_ARGS__) RIGHT()DEC())
+#define _ADD_MULTIPLE_5(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_4(__VA_ARGS__) RIGHT()DEC())
+#define _ADD_MULTIPLE(value, ...) CONCAT_CALL(_ADD_MULTIPLE_, ARGS_COUNT(value, __VA_ARGS__), value __VA_OPT__(,) __VA_ARGS__)
+
+//WARNING: it destroys the values of the cells to the left (only data ones)
+#define SET_CELL_FACTORS(value, ...) \
+	/* first clear the values of the cells that will be used */ \
+	SET_CELL(0) \
+	REPEAT(ARGS_COUNT(__VA_ARGS__), RIGHT()SET_CELL(0)) \
+	_ADD_MULTIPLE(value __VA_OPT__(,) __VA_ARGS__)/* compute the value */ \
+	REPEAT(ARGS_COUNT(__VA_ARGS__), LEFT())  /* go to the cell with the final value */
+
+
 
 // -----------------------------
 // program
@@ -223,7 +249,7 @@
 			MARK_CELL(TAPE_HEAD) \
 			GOTO_MARKER(ARRAY_HEAD) \
 		) \
-		IF_EQUAL(RIGHT_VALUE,  /* LFET */ \
+		IF_EQUAL(RIGHT_VALUE,  /* LEFT */ \
 			GOTO_MARKER(TAPE_HEAD) \
 			\
 			/* test to see if it is the tape barrier */ \
@@ -255,7 +281,6 @@
 )
 
 #define DO_ACCEPT() CODE( \
-	/* print accepted */ \
 	\
 	GOTO_MARKER(TAPE_HEAD) \
 	WHILE_NZ( \
@@ -364,6 +389,7 @@ int main() {  // just cleans up the string, remove operations that cancel each o
 		else
 			break;
 	}
+	//TODO: remove trailing <>+-
 
 	printf("%s\n", processed_bf);
 }
