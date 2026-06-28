@@ -1,4 +1,3 @@
-//TODO: OUTPUT
 // high level cell = [ Marker | Data ]
 #define CELL_SIZE 2
 // [copy cell][curr symbol][curr state](states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)[tape barrier](tape: [tape cell], ...)
@@ -40,6 +39,11 @@
 #define REPEAT_13(code) code code code code code code code code code code code code code
 #define REPEAT_14(code) code code code code code code code code code code code code code code
 #define REPEAT_15(code) code code code code code code code code code code code code code code code
+#define REPEAT_16(code) code code code code code code code code code code code code code code code code
+#define REPEAT_17(code) code code code code code code code code code code code code code code code code code
+#define REPEAT_18(code) code code code code code code code code code code code code code code code code code code
+#define REPEAT_19(code) code code code code code code code code code code code code code code code code code code code
+#define REPEAT_20(code) code code code code code code code code code code code code code code code code code code code code
 #define REPEAT_(count, code) REPEAT_##count(code)
 #define REPEAT(count, code) REPEAT_(count, code)
 
@@ -53,10 +57,10 @@
 #define _DO_OP_FACTORS_2(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_1(op, __VA_ARGS__) RIGHT()DEC())
 #define _DO_OP_FACTORS_3(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_2(op, __VA_ARGS__) RIGHT()DEC())
 #define _DO_OP_FACTORS_4(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_3(op, __VA_ARGS__) RIGHT()DEC())
-#define _DO_OP_FACTORS_5(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_4(op, __VA_ARGS__) RIGHT()DEC())
 
 //WARNING: all aux cell to the right must be with the value 0 for it to work properly
 // should only be used with ADD and SUB
+// It is smaller for more than 20 operations
 #define DO_OP_FACTORS(op, value, ...) \
 	REPEAT(ARGS_COUNT(__VA_ARGS__), RIGHT()) \
 	CONCAT_CALL(_DO_OP_FACTORS_, ARGS_COUNT(value, __VA_ARGS__), op, value __VA_OPT__(,) __VA_ARGS__)  /* compute the value */ \
@@ -291,39 +295,62 @@
 )
 
 #define DO_ACCEPT() CODE( \
-	GOTO_MARKER(COPY_CELL)  /* just to be safe, don't want to messup the tape head */ \
+	GOTO_MARKER(COPY_CELL)  /* can't change the value of the movement cell */ \
 	SET_MULTIPLE_CELLS(0, 2) \
 	\
 	DO_OP_FACTORS(ADD, 6, 11)  /* 66 */ \
-	SUB(1)PRINT()  /* A = 65 */ \
-	ADD(2)PRINT()  /* C = 67 */ \
-	PRINT()        /* C = 67 */ \
-	ADD(2)PRINT()  /* E = 69 */ \
-	DO_OP_FACTORS(ADD, 2, 5)  /* 79  */ \
-	ADD(1)PRINT()  /* P = 80 */ \
-	ADD(4)PRINT()  /* T = 84 */ \
-	DO_OP_FACTORS(SUB, 3, 5)  /* 69 */ \
-	PRINT()        /* E = 69 */ \
-	SUB(1)PRINT()  /* D = 68 */ \
+	SUB(1)PRINT()   /* A = 65 */ \
+	ADD(2)PRINT()   /* C = 67 */ \
+	PRINT()         /* C = 67 */ \
+	ADD(2)PRINT()   /* E = 69 */ \
+	ADD(11)PRINT()  /* P = 80 */ \
+	ADD(4)PRINT()   /* T = 84 */ \
+	SUB(15)PRINT()  /* E = 69 */ \
+	SUB(1)PRINT()   /* D = 68 */ \
 	SET_CELL(0) \
-	DO_OP_FACTORS(ADD, 2, 5)  /* 10 */ \
-	PRINT()        /* \n = 10 */ \
+	ADD(10)PRINT()  /* \n = 10 */ \
 	\
 	GOTO_MARKER(TAPE_HEAD) \
 	WHILE_NZ( \
 		  PRINT() \
 		  RIGHT() \
 	) \
+	\
+	SET_CELL(0) \
+	ADD(10)PRINT()  /* \n = 10 */ \
 )
 
 #define DO_REJECT() CODE( \
+	GOTO_MARKER(COPY_CELL)  /* can't change the value of the movement cell */ \
 	SET_MULTIPLE_CELLS(0, 2) \
 	\
+	DO_OP_FACTORS(ADD, 8, 10)  /* 80 */ \
+	ADD(2)PRINT()   /* R = 82 */ \
+	SUB(13)PRINT()  /* E = 69 */ \
+	ADD(5)PRINT()   /* J = 74 */ \
+	SUB(5)PRINT()   /* E = 69 */ \
+	SUB(2)PRINT()   /* C = 67 */ \
+	ADD(17)PRINT()  /* T = 84 */ \
+	SUB(15)PRINT()  /* E = 69 */ \
+	SUB(1)PRINT()   /* D = 68 */ \
+	SET_CELL(0) \
+	ADD(10)PRINT()  /* \n = 10 */ \
 )
 
 #define DO_ABORT() CODE( \
+	GOTO_MARKER(COPY_CELL)  /* just to be consistent */ \
 	SET_MULTIPLE_CELLS(0, 2) \
 	\
+	DO_OP_FACTORS(ADD, 6, 11)  /* 66 */ \
+	SUB(1)PRINT()   /* A = 65 */ \
+	ADD(1)PRINT()   /* B = 66 */ \
+	ADD(13)PRINT()  /* O = 79 */ \
+	ADD(3)PRINT()   /* R = 82 */ \
+	ADD(2)PRINT()   /* T = 84 */ \
+	SUB(15)PRINT()  /* E = 69 */ \
+	SUB(1)PRINT()   /* D = 68 */ \
+	SET_CELL(0) \
+	ADD(10)PRINT()  /* \n = 10 */ \
 )
 
 #define OUTPUT_RESULT() CODE(\
@@ -418,8 +445,6 @@ int main() {  // just cleans up the string, remove operations that cancel each o
 		else
 			break;
 	}
-	//TODO: remove trailing <>+-
 
 	printf("%s\n", processed_bf);
-	printf("%s\n", DO_ACCEPT());
 }
