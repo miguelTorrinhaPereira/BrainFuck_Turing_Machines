@@ -34,6 +34,12 @@
 #define REPEAT_7(code) code code code code code code code
 #define REPEAT_8(code) code code code code code code code code
 #define REPEAT_9(code) code code code code code code code code code
+#define REPEAT_10(code) code code code code code code code code code code
+#define REPEAT_11(code) code code code code code code code code code code code
+#define REPEAT_12(code) code code code code code code code code code code code code
+#define REPEAT_13(code) code code code code code code code code code code code code code
+#define REPEAT_14(code) code code code code code code code code code code code code code code
+#define REPEAT_15(code) code code code code code code code code code code code code code code code
 #define REPEAT_(count, code) REPEAT_##count(code)
 #define REPEAT(count, code) REPEAT_(count, code)
 
@@ -43,12 +49,30 @@
 #define ADD(value) REPEAT(value, INC())
 #define SUB(value) REPEAT(value, DEC())
 
+#define _DO_OP_FACTORS_1(op, value) op(value)
+#define _DO_OP_FACTORS_2(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_1(op, __VA_ARGS__) RIGHT()DEC())
+#define _DO_OP_FACTORS_3(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_2(op, __VA_ARGS__) RIGHT()DEC())
+#define _DO_OP_FACTORS_4(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_3(op, __VA_ARGS__) RIGHT()DEC())
+#define _DO_OP_FACTORS_5(op, value, ...) ADD(value) WHILE_NZ(LEFT() _DO_OP_FACTORS_4(op, __VA_ARGS__) RIGHT()DEC())
+
+//WARNING: all aux cell to the right must be with the value 0 for it to work properly
+// should only be used with ADD and SUB
+#define DO_OP_FACTORS(op, value, ...) \
+	REPEAT(ARGS_COUNT(__VA_ARGS__), RIGHT()) \
+	CONCAT_CALL(_DO_OP_FACTORS_, ARGS_COUNT(value, __VA_ARGS__), op, value __VA_OPT__(,) __VA_ARGS__)  /* compute the value */ \
+	REPEAT(ARGS_COUNT(__VA_ARGS__), LEFT())  /* go to the cell with the final value */
+
 // simple loop
 #define WHILE_NZ(code) "["code"]"
 
-// set current cell
+// set  cell
 #define _SET_CELL_ZERO() WHILE_NZ(DEC())
 #define SET_CELL(value) _SET_CELL_ZERO()ADD(value)
+
+#define SET_MULTIPLE_CELLS(value, count) \
+	REPEAT(count, RIGHT()) \
+	REPEAT(count, LEFT()SET_CELL(value))
+
 
 // movement
 #define _LEFT() "<"
@@ -151,20 +175,6 @@
 #define INPUT() ","
 #define PRINT() "."
 
-#define _ADD_MULTIPLE_1(value) ADD(value)
-#define _ADD_MULTIPLE_2(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_1(__VA_ARGS__) RIGHT()DEC())
-#define _ADD_MULTIPLE_3(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_2(__VA_ARGS__) RIGHT()DEC())
-#define _ADD_MULTIPLE_4(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_3(__VA_ARGS__) RIGHT()DEC())
-#define _ADD_MULTIPLE_5(value, ...) ADD(value) WHILE_NZ(LEFT() _ADD_MULTIPLE_4(__VA_ARGS__) RIGHT()DEC())
-#define _ADD_MULTIPLE(value, ...) CONCAT_CALL(_ADD_MULTIPLE_, ARGS_COUNT(value, __VA_ARGS__), value __VA_OPT__(,) __VA_ARGS__)
-
-//WARNING: it destroys the values of the cells to the left (only data ones)
-#define SET_CELL_FACTORS(value, ...) \
-	/* first clear the values of the cells that will be used */ \
-	SET_CELL(0) \
-	REPEAT(ARGS_COUNT(__VA_ARGS__), RIGHT()SET_CELL(0)) \
-	_ADD_MULTIPLE(value __VA_OPT__(,) __VA_ARGS__)/* compute the value */ \
-	REPEAT(ARGS_COUNT(__VA_ARGS__), LEFT())  /* go to the cell with the final value */
 
 
 
@@ -281,6 +291,23 @@
 )
 
 #define DO_ACCEPT() CODE( \
+	GOTO_MARKER(COPY_CELL)  /* just to be safe, don't want to messup the tape head */ \
+	SET_MULTIPLE_CELLS(0, 2) \
+	\
+	DO_OP_FACTORS(ADD, 6, 11)  /* 66 */ \
+	SUB(1)PRINT()  /* A = 65 */ \
+	ADD(2)PRINT()  /* C = 67 */ \
+	PRINT()        /* C = 67 */ \
+	ADD(2)PRINT()  /* E = 69 */ \
+	DO_OP_FACTORS(ADD, 2, 5)  /* 79  */ \
+	ADD(1)PRINT()  /* P = 80 */ \
+	ADD(4)PRINT()  /* T = 84 */ \
+	DO_OP_FACTORS(SUB, 3, 5)  /* 69 */ \
+	PRINT()        /* E = 69 */ \
+	SUB(1)PRINT()  /* D = 68 */ \
+	SET_CELL(0) \
+	DO_OP_FACTORS(ADD, 2, 5)  /* 10 */ \
+	PRINT()        /* \n = 10 */ \
 	\
 	GOTO_MARKER(TAPE_HEAD) \
 	WHILE_NZ( \
@@ -290,11 +317,13 @@
 )
 
 #define DO_REJECT() CODE( \
-	/* print rejected */ \
+	SET_MULTIPLE_CELLS(0, 2) \
+	\
 )
 
 #define DO_ABORT() CODE( \
-	/* print aborted */ \
+	SET_MULTIPLE_CELLS(0, 2) \
+	\
 )
 
 #define OUTPUT_RESULT() CODE(\
@@ -392,4 +421,5 @@ int main() {  // just cleans up the string, remove operations that cancel each o
 	//TODO: remove trailing <>+-
 
 	printf("%s\n", processed_bf);
+	printf("%s\n", DO_ACCEPT());
 }
