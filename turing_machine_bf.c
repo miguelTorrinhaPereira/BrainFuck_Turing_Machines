@@ -1,6 +1,8 @@
 // high level cell = [ Marker | Data ]
 #define CELL_SIZE 2
-// [copy cell][curr symbol][curr state](states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)[tape barrier](tape: [tape cell], ...)
+// [copy cell][curr symbol][curr state](states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)
+// [translation table header](translation table: [translation], ...)
+// [tape barrier](tape: [tape cell], ...)
 
 // movement cell values, also includes final states
 #define LEFT_VALUE 0
@@ -100,6 +102,7 @@
 #define ARRAY_HEAD 6
 #define TAPE_HEAD 7
 #define TAPE_BARRIER 8
+#define TRANSLATION_TABLE 9
 
 #define FALSE 0
 #define TRUE 1
@@ -169,6 +172,7 @@
 
 // array search
 #define ARRAY_SEARCH(index_marker, element_marker) \
+	GOTO_MARKER(index_marker) \
 	WHILE_NZ( \
 		GOTO_MARKER(ARRAY_HEAD)MARK_CELL(element_marker) \
 		_GOTO_MARKER_R(element_marker)MARK_CELL(ARRAY_HEAD) \
@@ -181,10 +185,10 @@
 
 
 
-
 // -----------------------------
 // program
 // -----------------------------
+
 
 
 #define READ_TAPE() CODE( \
@@ -197,6 +201,7 @@
 		/* we need to write every cell, not just the data cells */ \
 		_RIGHT() \
 		INPUT() \
+		DO_OP_FACTORS(SUB, 3, 11)  /* 33 is added before hand to every input for them to be printable characters */ \
 		INC() \
 	) \
 	/* leave it at 0, this will be used as tape */ \
@@ -212,8 +217,6 @@
 	/* go to the first cell of the first state */ \
 	GOTO_MARKER(STATE_START) \
 	MARK_CELL(ARRAY_HEAD) \
-	/* go back to the curr state cell */ \
-	GOTO_MARKER(CURR_STATE_CELL) \
 	/* the index cell end with the value 0 */ \
 	ARRAY_SEARCH(CURR_STATE_CELL, STATE_START) \
 	\
@@ -228,7 +231,6 @@
 	MARK_CELL(STATE_START) \
 	RIGHT() \
 	MARK_CELL(ARRAY_HEAD) \
-	GOTO_MARKER(CURR_SYM_CELL) \
 	ARRAY_SEARCH(CURR_SYM_CELL, ACTION_START) \
 )
 
@@ -310,14 +312,29 @@
 	SET_CELL(0) \
 	ADD(10)PRINT()  /* \n = 10 */ \
 	\
-	GOTO_MARKER(TAPE_HEAD) \
-	WHILE_NZ( \
-		  PRINT() \
-		  RIGHT() \
-	) \
+	/* print the output of the machine */ \
+	GOTO_MARKER(ARRAY_HEAD) \
+	MARK_CELL(UNMARKED) \
 	\
-	SET_CELL(0) \
-	ADD(10)PRINT()  /* \n = 10 */ \
+	GOTO_MARKER(TAPE_HEAD) \
+	WHILE_NZ(  /* until you find a blank sym (0) */ \
+		/* set up array search for the printable character corresponding to the sym number */ \
+		GOTO_MARKER(TRANSLATION_TABLE) \
+		RIGHT() \
+		MARK_CELL(ARRAY_HEAD) \
+		\
+		ARRAY_SEARCH(TAPE_HEAD, UNMARKED) \
+		\
+		GOTO_MARKER(ARRAY_HEAD) \
+		PRINT() \
+		MARK_CELL(UNMARKED) \
+		\
+		/* move to tape head to the next cell */ \
+		GOTO_MARKER(TAPE_HEAD) \
+		MARK_CELL(UNMARKED) \
+		RIGHT() \
+		MARK_CELL(TAPE_HEAD) \
+	) \
 )
 
 #define DO_REJECT() CODE( \
@@ -333,8 +350,6 @@
 	ADD(17)PRINT()  /* T = 84 */ \
 	SUB(15)PRINT()  /* E = 69 */ \
 	SUB(1)PRINT()   /* D = 68 */ \
-	SET_CELL(0) \
-	ADD(10)PRINT()  /* \n = 10 */ \
 )
 
 #define DO_ABORT() CODE( \
@@ -349,8 +364,6 @@
 	ADD(2)PRINT()   /* T = 84 */ \
 	SUB(15)PRINT()  /* E = 69 */ \
 	SUB(1)PRINT()   /* D = 68 */ \
-	SET_CELL(0) \
-	ADD(10)PRINT()  /* \n = 10 */ \
 )
 
 #define OUTPUT_RESULT() CODE(\
@@ -359,6 +372,9 @@
 	IF_EQUAL(ACCEPT_VALUE, DO_ACCEPT()) \
 	IF_EQUAL(REJECT_VALUE, DO_REJECT()) \
 	IF_EQUAL(ABORT_VALUE, DO_ABORT()) \
+	/* finish output */ \
+	SET_CELL(0) \
+	ADD(10)PRINT()  /* \n = 10 */ \
 )
 
 #define TURING_MACHINE_BF_PROGRAM CODE( \
@@ -366,6 +382,13 @@
 	SIMULATE() \
 	OUTPUT_RESULT() \
 )
+
+
+
+// -----------------------------
+// cleanup
+// -----------------------------
+
 
 
 #include <stdio.h>
