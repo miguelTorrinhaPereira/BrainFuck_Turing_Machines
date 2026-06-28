@@ -12,18 +12,18 @@
 #define MAX_LINE_SIZE ((1 << 12) + 1)
 #define MAX_STATE_STR_SIZE 32
 #define UNUSED_CHAR 0
-#define RESERVED_STATES_COUNT 3
 #define MAX_EXTRA_STATE_COUNT (UINT16_MAX - RESERVED_STATES_COUNT)
 #define MAX_VALID_STATE_NUM (UINT16_MAX - (RESERVED_STATES_COUNT - 1))
-#define FAILURE -1
-#define SUCCESS 0
 #define HEAD_CHAR 'V'
 #define BLANCK_CHAR '_'
 
-enum : uint16_t {
+
+typedef uint16_t state_num_t;
+enum : state_num_t {
 	qin,
 	qac,
-	qrej
+	qrej,
+	RESERVED_STATES_COUNT
 };
 
 
@@ -36,13 +36,13 @@ typedef enum : int8_t {
 typedef struct {
 	uint8_t new_symbol;
 	direction_t direction;
-	uint16_t new_state;
+	state_num_t new_state;
 } action_t;
 
 
 const uint8_t blanck_symbol = 0;
 const char *const reserved_states_str[RESERVED_STATES_COUNT] = {"qin", "qac", "qrej"};
-uint32_t alphabet_size = 1;  // black symbol is char □
+uint32_t alphabet_size = 1;  // black symbol is char _
 uint8_t char_to_symbol[UCHAR_MAX];
 char symbol_to_char[UCHAR_MAX];  // certanlly, there aren't more symbols than input characters
 
@@ -60,7 +60,7 @@ segment_array_t get_curr_tape(int64_t head_pos, segment_array_t tape_left, segme
 }
 
 
-const char *get_state_str(uint16_t state) {
+const char *get_state_str(state_num_t state) {
 	if (state < RESERVED_STATES_COUNT)
 		return reserved_states_str[state];
 
@@ -72,7 +72,7 @@ const char *get_state_str(uint16_t state) {
 }
 
 
-int32_t get_state_num(const char *state_str) {
+state_num_t get_state_num(const char *state_str) {
 	// ignore leading q
 	if (tolower(state_str[0]) == 'q')
 		state_str++;
@@ -84,16 +84,14 @@ int32_t get_state_num(const char *state_str) {
 
 	char *first_invalid_char = NULL;
 	long state_raw = strtol(state_str, &first_invalid_char, 10) + (RESERVED_STATES_COUNT - 1);
-	if (*first_invalid_char != '\0' || state_raw > MAX_VALID_STATE_NUM)
-		return FAILURE;
 
-	// if it is <= MA_VALID_STATE_NUM it certanly fits in a int32_t
-	return (int32_t) state_raw;
+	return (state_num_t) state_raw;
 }
 
 
-// it doesn't chec, the input, I don't care
+// it doesn't check the input, I don't care
 void read_state_actions(const char *state_str, action_t state_actions[alphabet_size]) {
+	char new_state_str[MAX_STATE_STR_SIZE];
 	printf("%s:\n", state_str);
 
 	for (int i = 0; i < alphabet_size; i++) {
@@ -106,12 +104,14 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 		}
 		ungetc(new_char, stdin);
 
-		scanf(" %c ,", &new_char);
-		state_actions[i].new_symbol = char_to_symbol[new_char];
+		uint8_t new_sym_raw, direction_raw;
+		scanf(" %c , %c , %s", &new_sym_raw, &direction_raw, new_state_str);
+		getchar();  // get trailing \n
 
-		scanf(" %c ,", &new_char);
-		new_char = toupper(new_char);
-		switch(new_char) {
+		state_actions[i].new_symbol = char_to_symbol[new_sym_raw];
+
+		direction_raw = toupper(direction_raw);
+		switch(direction_raw) {
 			case 'L':
 				state_actions[i].direction = L;
 				break;
@@ -123,9 +123,6 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 				break;
 		}
 
-		char new_state_str[MAX_STATE_STR_SIZE];
-		scanf(" %s", new_state_str);
-		getchar();  // get trailing \n
 		state_actions[i].new_state = get_state_num(new_state_str);
 	}
 }
@@ -174,21 +171,20 @@ int main()
 			continue;
 		}
 	
-		char_to_symbol[new_char] = alphabet_size;
+		char_to_symbol[new_char] = alphabet_size++;
 		symbol_to_char[char_to_symbol[new_char]] = new_char;
-		alphabet_size++;
 
 		line_p++;
 	}
 
-	uint16_t extra_state_count;
+	state_num_t extra_state_count;
 	printf("extra states count: ");
 	scanf(" %hu", &extra_state_count);
 	getchar();  // skip trailing \n
-	uint16_t state_count = RESERVED_STATES_COUNT + extra_state_count;
+	state_num_t state_count = RESERVED_STATES_COUNT + extra_state_count;
 
 	action_t state_actions[state_count][alphabet_size];
-	read_state_actions(get_state_str(qin), state_actions[0]);
+	read_state_actions(get_state_str(qin), state_actions[qin]);
 	for (int i = RESERVED_STATES_COUNT; i < state_count; i++) {
 		read_state_actions(get_state_str(i), state_actions[i]);
 	}
@@ -198,7 +194,7 @@ int main()
 
 	while (true) {
 		int64_t head_pos = 0;
-		uint16_t state = 0;
+		state_num_t state = 0;
 		uint64_t step = 0;
 
 		// input
@@ -214,7 +210,7 @@ int main()
 		do {
 			sa_push_back(tape_right, &char_to_symbol[new_char]);
 			new_char = getchar();
-		} while (new_char != '\n' || new_char == EOF);
+		} while (new_char != '\n' && new_char != EOF);
 
 		printf("Step: %ld, state: %s\n", step, get_state_str(state));
 		print_machine_state(head_pos, tape_left, tape_right);
