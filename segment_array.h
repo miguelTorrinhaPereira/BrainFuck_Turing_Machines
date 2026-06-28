@@ -70,7 +70,7 @@ void sa_clear2(segment_array_t sa, void (*delete_func)(void *));
 *
 *  NULL is returned if index is bigger or equal to the size of the segment array.
 */
-void *sa_get(segment_array_t sa, uint32_t index);
+void *sa_get(const segment_array_t sa, uint32_t index);
 /* Creates space for a new element at the end of the segment array.
 *
 *  slot_p will be set to point to the new element. The memory of the new element isn't

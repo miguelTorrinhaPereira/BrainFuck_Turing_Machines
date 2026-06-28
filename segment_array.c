@@ -58,7 +58,7 @@ static segment_array_t _bare_init_sa(size_t element_size) {
 }
 
 
-static void *_calculate_address(segment_array_t sa, uint32_t index) {
+static void *_calculate_address(const segment_array_t sa, uint32_t index) {
 	int segment = _segment_of_index(index);
 	int iner_index = index - (-(segment > 0) & _segment_capacity(segment));
 	return sa->segments[segment] + iner_index * sa->element_size;
@@ -170,7 +170,7 @@ void sa_clear2(segment_array_t sa, void (*delete_func)(void *)) {
 }
 
 
-void *sa_get(segment_array_t sa, uint32_t index) {
+void *sa_get(const segment_array_t sa, uint32_t index) {
 	if(index >= sa->size)
 		return NULL;
 
