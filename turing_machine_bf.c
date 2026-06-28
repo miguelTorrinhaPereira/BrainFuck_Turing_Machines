@@ -1,7 +1,8 @@
+//TODO: create make file
 //TODO: remove CODE()
 // high level cell = [ Marker | Data ]
 #define CELL_SIZE 2
-// [copy cell][curr symbol][curr state](states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)
+// [copy cell][curr state][curr symbol](states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)
 // [translation table header](translation table: [translation], ...)
 // [tape barrier](tape: [tape cell], ...)
 
@@ -176,10 +177,15 @@
 // -----------------------------
 
 
+#define INPUT_OFFSET 34
+#define DO_OP_INPUT_OFFSET(op) DO_OP_FACTORS(op, 4, 8) op(2)
+#define ADD_INPUT_OFFSET() REPEAT(2, ADD(17))
+
 
 #define READ_TAPE() CODE( \
 	/* first cell */ \
 	INPUT() \
+	DO_OP_INPUT_OFFSET(SUB)  /* INPUT_OFFSET is added before hand to every input for them to be printable characters */ \
 	/* read input until you read a 255 */ \
 	INC() \
 	WHILE_NZ( \
@@ -187,10 +193,28 @@
 		/* we need to write every cell, not just the data cells */ \
 		_RIGHT() \
 		INPUT() \
-		DO_OP_FACTORS(SUB, 4, 8)SUB(1)  /* 33 is added before hand to every input for them to be printable characters */ \
+		DO_OP_INPUT_OFFSET(SUB)  /* INPUT_OFFSET is added before hand to every input for them to be printable characters */ \
 		INC() \
 	) \
 	/* leave it at 0, this will be used as tape */ \
+	\
+	/* add 33 back to the translation table values, they didn't need that offset, they were already printable from the start */ \
+	GOTO_MARKER(TRANSLATION_TABLE) \
+	RIGHT() \
+	SHIFT_TO_MARKER() \
+		SUB(TAPE_BARRIER) \
+		WHILE_NZ( \
+			ADD(TAPE_BARRIER) \
+			\
+			RET_MARKER() \
+			ADD_INPUT_OFFSET()  /* can't use DO_OP_INPUT_OFFSET(ADD), it would destory the other cell */ \
+			SHIFT_TO_MARKER() \
+			RIGHT() \
+			\
+			SUB(TAPE_BARRIER) \
+		) \
+		ADD(TAPE_BARRIER) \
+	RET_MARKER() \
 )
 
 
@@ -238,7 +262,7 @@
 		\
 		/* copy the new sym to the tape head cell only if the state is not terminal */ \
 		GOTO_MARKER(CURR_STATE_CELL) \
-		IF_EQUAL(0, \
+		IF_EQUAL(0,  /* to the right is the curr sym cell that now is useless */ \
 			GOTO_MARKER(ARRAY_HEAD) \
 			COPY(ARRAY_HEAD, TAPE_HEAD) \
 			GOTO_MARKER(CURR_STATE_CELL) \
