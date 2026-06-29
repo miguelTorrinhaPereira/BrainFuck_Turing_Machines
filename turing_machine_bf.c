@@ -1,4 +1,3 @@
-//TODO: create make file
 // high level cell = [ Marker | Data ]
 #define CELL_SIZE 2
 // [copy cell][conditio cell][curr state][curr symbol]
