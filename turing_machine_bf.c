@@ -1,5 +1,4 @@
 //TODO: create make file
-//TODO: remove CODE()
 // high level cell = [ Marker | Data ]
 #define CELL_SIZE 2
 // [copy cell][conditio cell][curr state][curr symbol]
@@ -9,9 +8,6 @@
 
 // marker values
 #include "bf_values.h"
-
-// used to avoid spaces
-#define CODE(code) code
 
 // variadict macro stuff
 #define _ARGS_COUNT_NUMS() 5, 4, 3, 2, 1, 0
@@ -141,7 +137,7 @@
 
 // conditional
 // doesn't affect any other cell, nestable
-#define IF_EQUAL(value, value_marker, code) CODE( \
+#define IF_EQUAL(value, value_marker, code) \
 	GOTO_MARKER(CONDITION_CELL) \
 	INC()  /* it was 0, now its 1 */ \
 	GOTO_MARKER(value_marker) \
@@ -159,11 +155,10 @@
 	WHILE_NZ( \
 		DEC() \
 		GOTO_MARKER(value_marker) \
-		CODE(code) \
+		code \
 		GOTO_MARKER(CONDITION_CELL) \
 	) \
 	GOTO_MARKER(value_marker) \
-)
 
 // IO
 #define INPUT() ","
@@ -180,7 +175,7 @@
 #define ADD_INPUT_OFFSET() REPEAT(2, ADD(17))
 
 
-#define READ_TAPE() CODE( \
+#define READ_TAPE() \
 	/* first cell */ \
 	INPUT() \
 	DO_OP_INPUT_OFFSET(SUB)  /* INPUT_OFFSET is added before hand to every input for them to be printable characters */ \
@@ -216,10 +211,9 @@
 	\
 	/* we are now at the tape barrier, put the special value 255 in it */ \
 	DEC()  /* 0 - 1 -> 255 */ \
-)
 
 
-#define FIND_ACTION() CODE( \
+#define FIND_ACTION() \
 	/* setup array search to get the curr state */ \
 	/* the previous ARRAY_HEAD was the movement cell of some action */ \
 	/* this is usefull for the terminal states, they can put 2 and 3 for aceptance and rejection states */ \
@@ -244,9 +238,8 @@
 	/* get the correct action, we are already have marked the correct state */ \
 	GOTO_MARKER(CURR_SYM_CELL) \
 	ARRAY_SEARCH(CURR_SYM_CELL, ACTION_START) \
-)
 
-#define SIMULATE() CODE( \
+#define SIMULATE() \
 	/* expected starting point for the loop, continues until the curr state is 0 */ \
 	GOTO_MARKER(CURR_STATE_CELL) \
 	/* main loop */ \
@@ -303,9 +296,8 @@
 		/* if the state is 0, the machine stops */ \
 		GOTO_MARKER(CURR_STATE_CELL) \
 	) \
-)
 
-#define DO_ACCEPT() CODE( \
+#define DO_ACCEPT() \
 	GOTO_MARKER(COPY_CELL)  /* can't change the value of the final status cell */ \
 	SET_MULTIPLE_CELLS(0, 2)  /* unecessary */ \
 	\
@@ -342,9 +334,8 @@
 		RIGHT() \
 		MARK_CELL(TAPE_HEAD) \
 	) \
-)
 
-#define DO_REJECT() CODE( \
+#define DO_REJECT() \
 	GOTO_MARKER(COPY_CELL)  /* can't change the value of the final status cell */ \
 	SET_MULTIPLE_CELLS(0, 2)  /* unecessary */ \
 	\
@@ -357,9 +348,8 @@
 	ADD(17)PRINT()  /* T = 84 */ \
 	SUB(15)PRINT()  /* E = 69 */ \
 	SUB(1)PRINT()   /* D = 68 */ \
-)
 
-#define DO_ABORT() CODE( \
+#define DO_ABORT() \
 	GOTO_MARKER(COPY_CELL)  /* just to be consistent */ \
 	SET_MULTIPLE_CELLS(0, 2)  /* unecessary */ \
 	\
@@ -371,9 +361,8 @@
 	ADD(2)PRINT()   /* T = 84 */ \
 	SUB(15)PRINT()  /* E = 69 */ \
 	SUB(1)PRINT()   /* D = 68 */ \
-)
 
-#define OUTPUT_RESULT() CODE(\
+#define OUTPUT_RESULT()\
 	/* ARRAY_HEAD will possibly be used in the translation table */ \
 	GOTO_MARKER(ARRAY_HEAD) \
 	MARK_CELL(FINAL_STATUS) \
@@ -384,13 +373,11 @@
 	/* finish output */ \
 	SET_CELL(0)  /* the ARRAY_HEAD cell no longer matters, this is the end! */ \
 	ADD(10)PRINT()  /* \n = 10 */ \
-)
 
-#define TURING_MACHINE_BF_PROGRAM CODE( \
+#define TURING_MACHINE_BF_PROGRAM \
 	READ_TAPE() \
 	SIMULATE() \
 	OUTPUT_RESULT() \
-)
 
 
 
