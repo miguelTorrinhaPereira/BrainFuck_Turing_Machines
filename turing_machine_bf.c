@@ -2,7 +2,8 @@
 //TODO: remove CODE()
 // high level cell = [ Marker | Data ]
 #define CELL_SIZE 2
-// [copy cell][curr state][curr symbol](states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)
+// [copy cell][conditio cell][curr state][curr symbol]
+// (states: (state: [state_header](actions: (action: [new state][new sym][move][empty cell]), ...)), ...)
 // [translation table header](translation table: [translation], ...)
 // [tape barrier](tape: [tape cell], ...)
 
@@ -90,37 +91,8 @@
 #define SHIFT_TO_MARKER() _LEFT()
 #define RET_MARKER() _RIGHT()
 
-// may be used in any cell (marker or data)
-#define FALSE 0
-#define TRUE 1
-
 // mark cell
 #define MARK_CELL(value) SHIFT_TO_MARKER()SET_CELL(value)RET_MARKER()
-
-// conditional
-// sets the cell 2 cells to the right to 0
-#define IF_EQUAL(value, code) CODE( \
-	RIGHT() \
-	SET_CELL(TRUE) \
-	LEFT() \
-	\
-	SUB(value) \
-	WHILE_NZ( \
-		RIGHT() \
-		SET_CELL(FALSE) \
-		LEFT() \
-	) \
-	ADD(value) \
-	\
-	RIGHT() \
-	WHILE_NZ( \
-		SET_CELL(0) \
-		LEFT() \
-		CODE(code) \
-		RIGHT() \
-	) \
-	LEFT() \
-)
 
 // find marker
 #define _GOTO_MARKER_L(marker) \
@@ -162,9 +134,36 @@
 	GOTO_MARKER(index_marker) \
 	WHILE_NZ( \
 		GOTO_MARKER(ARRAY_HEAD)MARK_CELL(element_marker) \
+		RIGHT() \
 		_GOTO_MARKER_R(element_marker)MARK_CELL(ARRAY_HEAD) \
 		GOTO_MARKER(index_marker)DEC() \
 	)
+
+// conditional
+// doesn't affect any other cell, nestable
+#define IF_EQUAL(value, value_marker, code) CODE( \
+	GOTO_MARKER(CONDITION_CELL) \
+	INC()  /* it was 0, now its 1 */ \
+	GOTO_MARKER(value_marker) \
+	\
+	SUB(value) \
+	WHILE_NZ( \
+		GOTO_MARKER(CONDITION_CELL) \
+		DEC() \
+		/* must stay here for the loop to stop */ \
+	) \
+	GOTO_MARKER(value_marker)  /* may have ended up in the CONDITION_CELL */ \
+	ADD(value) \
+	\
+	GOTO_MARKER(CONDITION_CELL) \
+	WHILE_NZ( \
+		DEC() \
+		GOTO_MARKER(value_marker) \
+		CODE(code) \
+		GOTO_MARKER(CONDITION_CELL) \
+	) \
+	GOTO_MARKER(value_marker) \
+)
 
 // IO
 #define INPUT() ","
@@ -177,7 +176,6 @@
 // -----------------------------
 
 
-#define INPUT_OFFSET 34
 #define DO_OP_INPUT_OFFSET(op) DO_OP_FACTORS(op, 4, 8) op(2)
 #define ADD_INPUT_OFFSET() REPEAT(2, ADD(17))
 
@@ -215,6 +213,9 @@
 		) \
 		ADD(TAPE_BARRIER) \
 	RET_MARKER() \
+	\
+	/* we are now at the tape barrier, put the special value 255 in it */ \
+	DEC()  /* 0 - 1 -> 255 */ \
 )
 
 
@@ -230,17 +231,18 @@
 	/* the index cell end with the value 0 */ \
 	ARRAY_SEARCH(CURR_STATE_CELL, STATE_START) \
 	\
-	/* copy the curr symbol of the turing machine */ \
-	GOTO_MARKER(TAPE_HEAD) \
-	COPY(TAPE_HEAD, CURR_SYM_CELL) \
-	GOTO_MARKER(CURR_SYM_CELL) \
-	\
-	/* get the correct action, we are already have marked the correct state */ \
-	GOTO_MARKER(ARRAY_HEAD) \
 	/* skip state header */ \
+	GOTO_MARKER(ARRAY_HEAD) \
 	MARK_CELL(STATE_START) \
 	RIGHT() \
 	MARK_CELL(ARRAY_HEAD) \
+	\
+	/* copy the curr symbol of the turing machine */ \
+	GOTO_MARKER(TAPE_HEAD) \
+	COPY(TAPE_HEAD, CURR_SYM_CELL) \
+	\
+	/* get the correct action, we are already have marked the correct state */ \
+	GOTO_MARKER(CURR_SYM_CELL) \
 	ARRAY_SEARCH(CURR_SYM_CELL, ACTION_START) \
 )
 
@@ -260,47 +262,38 @@
 		RIGHT() \
 		MARK_CELL(ARRAY_HEAD) \
 		\
-		/* copy the new sym to the tape head cell only if the state is not terminal */ \
-		GOTO_MARKER(CURR_STATE_CELL) \
-		IF_EQUAL(0,  /* to the right is the curr sym cell that now is useless */ \
-			GOTO_MARKER(ARRAY_HEAD) \
-			COPY(ARRAY_HEAD, TAPE_HEAD) \
-			GOTO_MARKER(CURR_STATE_CELL) \
-		) \
-		GOTO_MARKER(ARRAY_HEAD) \
+		/* copy the new sym to the tape head cell */ \
+		/* qac and qrej are setup so that the symbol stays the same */ \
+		COPY(ARRAY_HEAD, TAPE_HEAD) \
 		\
 		/* go to the move cell of the action */ \
 		MARK_CELL(UNMARKED) \
 		RIGHT() \
 		MARK_CELL(ARRAY_HEAD) \
 		\
-		IF_EQUAL(LEFT_VALUE,  /* RIGHT */ \
+		IF_EQUAL(RIGHT_VALUE, ARRAY_HEAD,  /* RIGHT */ \
 			GOTO_MARKER(TAPE_HEAD) \
 			MARK_CELL(UNMARKED) \
 			RIGHT() \
 			MARK_CELL(TAPE_HEAD) \
 			GOTO_MARKER(ARRAY_HEAD) \
 		) \
-		IF_EQUAL(RIGHT_VALUE,  /* LEFT */ \
+		IF_EQUAL(LEFT_VALUE, ARRAY_HEAD,  /* LEFT */ \
 			GOTO_MARKER(TAPE_HEAD) \
 			\
 			/* test to see if it is the tape barrier */ \
 			LEFT() \
-			SHIFT_TO_MARKER() \
-				IF_EQUAL(TAPE_BARRIER, \
-					/* this is the tape barrier! abort! */ \
-					RET_MARKER() \
-					/*  put the curr state to 0 so it stops */ \
-					GOTO_MARKER(CURR_STATE_CELL) \
-					SET_CELL(0) \
-					/* put the movement to ABORT_VALUE to know the cause of the stop */ \
-					GOTO_MARKER(ARRAY_HEAD) \
-					SET_CELL(ABORT_VALUE) \
-					\
-					GOTO_MARKER(TAPE_BARRIER) \
-					SHIFT_TO_MARKER() \
-				) \
-			RET_MARKER() \
+			INC()  /* if it is the barrier it should be 255, so +1 turns into 0 */ \
+			IF_EQUAL(0, TAPE_BARRIER, \
+				/* this is the tape barrier! abort! */ \
+				/*  put the curr state to 0 so it stops */ \
+				GOTO_MARKER(CURR_STATE_CELL) \
+				SET_CELL(TERMINAL_STATE) \
+				/* put the movement to ABORT_VALUE to know the cause of the stop */ \
+				GOTO_MARKER(ARRAY_HEAD) \
+				SET_CELL(ABORT_VALUE) \
+			) \
+			DEC()  /* back to 255, the IF_EQUAL returns at the value cell */ \
 			\
 			/* actually do the left movement */ \
 			/* The IF_EQUAL already set the old head to 0 */ \
@@ -313,8 +306,8 @@
 )
 
 #define DO_ACCEPT() CODE( \
-	GOTO_MARKER(COPY_CELL)  /* can't change the value of the movement cell */ \
-	SET_MULTIPLE_CELLS(0, 2) \
+	GOTO_MARKER(COPY_CELL)  /* can't change the value of the final status cell */ \
+	SET_MULTIPLE_CELLS(0, 2)  /* unecessary */ \
 	\
 	DO_OP_FACTORS(ADD, 6, 11)  /* 66 */ \
 	SUB(1)PRINT()   /* A = 65 */ \
@@ -327,11 +320,9 @@
 	SUB(1)PRINT()   /* D = 68 */ \
 	SET_CELL(0) \
 	ADD(10)PRINT()  /* \n = 10 */ \
+	SET_CELL(0)  /* just to be sure, don't messup the copy cell */ \
 	\
 	/* print the output of the machine */ \
-	GOTO_MARKER(ARRAY_HEAD) \
-	MARK_CELL(UNMARKED) \
-	\
 	GOTO_MARKER(TAPE_HEAD) \
 	WHILE_NZ(  /* until you find a blank sym (0) */ \
 		/* set up array search for the printable character corresponding to the sym number */ \
@@ -354,8 +345,8 @@
 )
 
 #define DO_REJECT() CODE( \
-	GOTO_MARKER(COPY_CELL)  /* can't change the value of the movement cell */ \
-	SET_MULTIPLE_CELLS(0, 2) \
+	GOTO_MARKER(COPY_CELL)  /* can't change the value of the final status cell */ \
+	SET_MULTIPLE_CELLS(0, 2)  /* unecessary */ \
 	\
 	DO_OP_FACTORS(ADD, 8, 10)  /* 80 */ \
 	ADD(2)PRINT()   /* R = 82 */ \
@@ -370,7 +361,7 @@
 
 #define DO_ABORT() CODE( \
 	GOTO_MARKER(COPY_CELL)  /* just to be consistent */ \
-	SET_MULTIPLE_CELLS(0, 2) \
+	SET_MULTIPLE_CELLS(0, 2)  /* unecessary */ \
 	\
 	DO_OP_FACTORS(ADD, 6, 11)  /* 66 */ \
 	SUB(1)PRINT()   /* A = 65 */ \
@@ -383,13 +374,15 @@
 )
 
 #define OUTPUT_RESULT() CODE(\
+	/* ARRAY_HEAD will possibly be used in the translation table */ \
 	GOTO_MARKER(ARRAY_HEAD) \
+	MARK_CELL(FINAL_STATUS) \
 	\
-	IF_EQUAL(ACCEPT_VALUE, DO_ACCEPT()) \
-	IF_EQUAL(REJECT_VALUE, DO_REJECT()) \
-	IF_EQUAL(ABORT_VALUE, DO_ABORT()) \
+	IF_EQUAL(ACCEPT_VALUE, FINAL_STATUS, DO_ACCEPT()) \
+	IF_EQUAL(REJECT_VALUE, FINAL_STATUS, DO_REJECT()) \
+	IF_EQUAL(ABORT_VALUE, FINAL_STATUS, DO_ABORT()) \
 	/* finish output */ \
-	SET_CELL(0) \
+	SET_CELL(0)  /* the ARRAY_HEAD cell no longer matters, this is the end! */ \
 	ADD(10)PRINT()  /* \n = 10 */ \
 )
 

@@ -17,9 +17,8 @@
 #define MAX_VALID_STATE_NUM (UINT8_MAX - (RESERVED_STATES_COUNT - 1))
 #define BLANCK_CHAR '_'
 
-#define INITIAL_CELLS_COUNT 3
-#define ACTION_CELL_COUNT 4
-#define OUTPUT_OFFSET 34
+#define INITIAL_CELLS_COUNT (STATE_START - 1)
+#define ACTION_CELL_COUNT 3
 #define OUTPUT_END_SYM '\xff'  // 255
 
 
@@ -85,7 +84,7 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 		uint8_t new_char = getchar();
 		if (new_char == '\n') {
-			state_actions[i] = (action_t){ i, STAY_VALUE, qrej };
+			state_actions[i] = (action_t){ .new_state = qrej, .new_symbol = i, .direction = STAY_VALUE };
 			continue;
 		}
 		ungetc(new_char, stdin);
@@ -116,7 +115,7 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 void setup_final_state_actions(action_t state_actions[alphabet_size], uint8_t move_value) {
 	for(int i = 0; i < alphabet_size; i++)
-		state_actions[i] = (action_t){.new_state = 0, .new_symbol = 0, .direction = move_value};
+		state_actions[i] = (action_t){.new_state = TERMINAL_STATE, .new_symbol = i, .direction = move_value};
 }
 
 
@@ -166,13 +165,16 @@ int main()
 	uint32_t rw_tape_size = INITIAL_CELLS_COUNT + states_cell_count + translation_table_cell_count + 1;  // tape barrier
 	
 	uint8_t markers[rw_tape_size] = {};
-	markers[0] = COPY_CELL;
-	markers[1] = CURR_STATE_CELL;
-	markers[2] = CURR_SYM_CELL;
+	// in this case, the marker -1 corresponds to the cell position
+	markers[COPY_CELL - 1] = COPY_CELL;
+	markers[CONDITION_CELL - 1] = CONDITION_CELL;
+	markers[CURR_STATE_CELL - 1] = CURR_STATE_CELL;
+	markers[CURR_SYM_CELL - 1] = CURR_SYM_CELL;
 	markers[INITIAL_CELLS_COUNT + 2] = ARRAY_HEAD;
 	for(int i = 0; i < state_count; i++) {
 		uint32_t state_start = INITIAL_CELLS_COUNT + i * state_cell_count;
 		markers[state_start] = STATE_START;
+
 		for(int j = 0; j < alphabet_size; j++) {
 			uint32_t action_start = (state_start + 1) + j * ACTION_CELL_COUNT;
 			markers[action_start] = ACTION_START;
@@ -182,21 +184,22 @@ int main()
 	markers[INITIAL_CELLS_COUNT + states_cell_count + translation_table_cell_count] = TAPE_BARRIER;
 
 	uint8_t data[rw_tape_size] = {};
-	data[1] = qin;
+	data[CURR_STATE_CELL - 1] = qin;
 	for(int i = 1; i < state_count; i++) {
 		uint32_t state_start = INITIAL_CELLS_COUNT + i * state_cell_count;
+		data[state_start] = i;
+
 		for(int j = 0; j < alphabet_size; j++) {
 			uint32_t action_start = (state_start + 1) + j * ACTION_CELL_COUNT;
 			action_t action = state_actions[i][j];
 			data[action_start + 0] = action.new_state;
 			data[action_start + 1] = action.new_symbol;
 			data[action_start + 2] = action.direction;
-			printf("\n%d %d %d\n", action.new_state, action.new_symbol, action.direction);
 		}
 	}
 	uint32_t translation_table_start = INITIAL_CELLS_COUNT + states_cell_count;
 	for(int i = 0; i < alphabet_size; i++)
-		data[translation_table_start + 1 + i] = symbol_to_char[i] - OUTPUT_OFFSET;  // they are already printable
+		data[translation_table_start + 1 + i] = symbol_to_char[i] - BF_INPUT_OFFSET;  // they are already printable
 
 
 	segment_array_t input_tape = sa_create(sizeof(uint8_t));
@@ -216,20 +219,20 @@ int main()
 
 		// rw tape
 		for(int i = 0; i < rw_tape_size; i++) {
-			putchar(markers[i] + OUTPUT_OFFSET);
-			putchar(data[i] + OUTPUT_OFFSET);
+			putchar(markers[i] + BF_INPUT_OFFSET);
+			putchar(data[i] + BF_INPUT_OFFSET);
 		}
 
 		// input tape
-		putchar(TAPE_HEAD + OUTPUT_OFFSET);
-		putchar(*(uint8_t *)sa_get(input_tape, 0) + OUTPUT_OFFSET);
+		putchar(TAPE_HEAD + BF_INPUT_OFFSET);
+		putchar(*(uint8_t *)sa_get(input_tape, 0) + BF_INPUT_OFFSET);
 		for(int i = 1; i < sa_size(input_tape); i++) {
-			putchar(UNMARKED + OUTPUT_OFFSET);
-			putchar(*(uint8_t *)sa_get(input_tape, i) + OUTPUT_OFFSET);
+			putchar(UNMARKED + BF_INPUT_OFFSET);
+			putchar(*(uint8_t *)sa_get(input_tape, i) + BF_INPUT_OFFSET);
 		}
 
-		putchar(0 + OUTPUT_OFFSET);  // so that the machine reads the output end sym in a data cell
-		putchar(OUTPUT_END_SYM + OUTPUT_OFFSET);
+		putchar(0 + BF_INPUT_OFFSET);  // so that the machine reads the output end sym in a data cell
+		putchar(OUTPUT_END_SYM + BF_INPUT_OFFSET);
 		putchar('\n');
 	}
 
