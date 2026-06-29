@@ -99,7 +99,7 @@ void read_state_actions(const char *state_str, action_t state_actions[alphabet_s
 
 		uint8_t new_char = getchar();
 		if (new_char == '\n') {
-			state_actions[i] = (action_t){ i, S, qrej };
+			state_actions[i] = (action_t){ .new_symbol = i, .direction = S, .new_state = qrej };
 			continue;
 		}
 		ungetc(new_char, stdin);
